@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b1120">
   <title>HPL | Hokejová Pucková Liga</title>
+
   <style>
     :root {
       --bg: #0b1120;
@@ -19,6 +20,8 @@
     }
 
     * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
 
     body {
       margin: 0;
@@ -248,6 +251,35 @@
     .points { color: var(--green); font-weight: 800; }
     .team { font-weight: 700; }
 
+    .match {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .match:last-child { border-bottom: 0; }
+
+    .match-meta {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .match-teams {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+    }
+
+    .match-away { text-align: right; }
+
+    .match-score {
+      color: var(--blue);
+      font-size: 19px;
+      font-weight: 900;
+      text-align: center;
+    }
+
     .bottom-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -257,11 +289,19 @@
     .feature { padding: 23px; }
     .feature-icon { font-size: 26px; margin-bottom: 13px; }
     .feature h3 { margin: 0 0 9px; }
+
     .feature p {
       margin: 0;
       color: var(--muted);
       font-size: 14px;
       line-height: 1.7;
+    }
+
+    .notice {
+      padding: 15px 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
     }
 
     footer {
@@ -286,6 +326,9 @@
       .stat span { font-size: 10px; }
       .container { padding: 0 16px; }
       .bottom-grid { grid-template-columns: 1fr; }
+      .match { padding: 16px 12px; }
+      .match-teams { gap: 7px; font-size: 12px; }
+      .match-score { font-size: 16px; }
     }
 
     @media (max-width: 390px) {
@@ -294,6 +337,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="nav">
@@ -304,6 +348,7 @@
           <small>HOCKEY PUCK LEAGUE</small>
         </div>
       </a>
+
       <nav>
         <a href="#zapasy">Zápasy</a>
         <a href="#tabulka">Tabulka</a>
@@ -336,29 +381,28 @@
           <span>Hokejová Pucková liga</span>
         </div>
         <div class="stat">
-          <strong>0 : 0</strong>
-          <span>Další zápas bude doplněn</span>
+          <strong id="pocet-zapasu">—</strong>
+          <span>Odehrané zápasy</span>
         </div>
         <div class="stat">
-          <strong>2026</strong>
-          <span>Sezóna HPL</span>
+          <strong id="pocet-tymu">—</strong>
+          <span>Registrované týmy</span>
         </div>
       </section>
 
       <section class="section" id="zapasy">
         <div class="section-heading">
           <h2>Program a výsledky</h2>
-          <a href="#kontakt">Informace o lize ↗</a>
         </div>
+
         <div class="panel">
           <div class="panel-top">
             <span>Nejnovější zápasy</span>
             <span class="live">● HPL</span>
           </div>
-          <div class="empty">
+          <div id="seznam-zapasu" class="empty">
             <div class="empty-icon">🏒</div>
-            <strong>Zápasy budou brzy zveřejněny</strong>
-            <div>Jakmile začne sezóna, najdeš výsledky právě tady.</div>
+            <strong>Načítám zápasy…</strong>
           </div>
         </div>
       </section>
@@ -366,8 +410,8 @@
       <section class="section" id="tabulka">
         <div class="section-heading">
           <h2>Ligová tabulka</h2>
-          <a href="#kontakt">Pravidla soutěže ↗</a>
         </div>
+
         <div class="panel">
           <div class="table-wrap">
             <table>
@@ -378,22 +422,21 @@
                   <th>Z</th>
                   <th>V</th>
                   <th>P</th>
+                  <th>Skóre</th>
                   <th>Body</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="telo-tabulky">
                 <tr>
-                  <td class="rank">—</td>
-                  <td class="team">Týmy budou doplněny</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td class="points">0</td>
+                  <td colspan="7">Načítám tabulku…</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div class="empty">Oficiální pořadí se zobrazí po zahájení soutěže.</div>
+          <div class="notice">
+            Bodování: výhra v základní době = 3 body.
+            Výhra v prodloužení = 2 body, prohra v prodloužení = 1 bod.
+          </div>
         </div>
       </section>
 
@@ -401,6 +444,7 @@
         <div class="section-heading">
           <h2>Víc než jen zápasy</h2>
         </div>
+
         <div class="bottom-grid">
           <div class="panel feature">
             <div class="feature-icon">🏆</div>
@@ -429,5 +473,223 @@
     Neoficiální komunitní soutěž ve hře Puck.<br>
     © 2026 HPL. Všechna práva vyhrazena.
   </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://hmwbrebwjcgtxtbcebec.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_j3-UIjNpqdxWSoNaPsFdzw_O0pFpsYH";
+
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    function bezpecnyText(hodnota) {
+      return String(hodnota ?? "").replace(/[&<>"']/g, znak => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[znak]);
+    }
+
+    function zobrazChybu() {
+      document.getElementById("seznam-zapasu").innerHTML = `
+        <div class="empty-icon">⚠️</div>
+        <strong>Data se nepodařilo načíst</strong>
+        <div>Zkus stránku obnovit. Pokud chyba přetrvá, bude potřeba zkontrolovat nastavení databáze.</div>
+      `;
+
+      document.getElementById("telo-tabulky").innerHTML = `
+        <tr><td colspan="7">Tabulku se nepodařilo načíst.</td></tr>
+      `;
+    }
+
+    async function nactiDataHPL() {
+      const panelZapasu = document.getElementById("seznam-zapasu");
+      const tabulkaTelo = document.getElementById("telo-tabulky");
+
+      try {
+        const { data: tymy, error: chybaTymu } =
+          await supabaseClient
+            .from("teams")
+            .select("id, name, short_name");
+
+        if (chybaTymu) throw chybaTymu;
+
+        const { data: zapasy, error: chybaZapasu } =
+          await supabaseClient
+            .from("matches")
+            .select(`
+              id, home_team_id, away_team_id, status,
+              home_score, away_score, overtime, match_time,
+              home:teams!matches_home_team_id_fkey(name, short_name),
+              away:teams!matches_away_team_id_fkey(name, short_name)
+            `)
+            .order("match_time", { ascending: true });
+
+        if (chybaZapasu) throw chybaZapasu;
+
+        const seznamTymu = tymy || [];
+        const vsechnyZapasy = zapasy || [];
+
+        document.getElementById("pocet-tymu").textContent =
+          seznamTymu.length;
+
+        document.getElementById("pocet-zapasu").textContent =
+          vsechnyZapasy.filter(z => z.status === "finished").length;
+
+        // Zápasy a výsledky
+        if (vsechnyZapasy.length === 0) {
+          panelZapasu.innerHTML = `
+            <div class="empty-icon">🏒</div>
+            <strong>Zatím nejsou zadány žádné zápasy</strong>
+            <div>Program se zobrazí po přidání zápasů do databáze.</div>
+          `;
+        } else {
+          const serazeneZapasy = [...vsechnyZapasy].sort((a, b) => {
+            if (a.status === "live" && b.status !== "live") return -1;
+            if (b.status === "live" && a.status !== "live") return 1;
+            if (a.status === "finished" && b.status !== "finished") return -1;
+            if (b.status === "finished" && a.status !== "finished") return 1;
+
+            return new Date(b.match_time || 0) -
+                   new Date(a.match_time || 0);
+          });
+
+          panelZapasu.className = "";
+          panelZapasu.innerHTML = serazeneZapasy.slice(0, 10).map(z => {
+            const domaci = z.home?.short_name || z.home?.name || "Domácí";
+            const hoste = z.away?.short_name || z.away?.name || "Hosté";
+
+            const maSkore =
+              z.home_score !== null && z.home_score !== undefined &&
+              z.away_score !== null && z.away_score !== undefined;
+
+            const skore = maSkore
+              ? `${z.home_score} : ${z.away_score}`
+              : "VS";
+
+            const stav = z.status === "live"
+              ? "🔴 PRÁVĚ SE HRAJE"
+              : z.status === "finished"
+                ? "KONEC ZÁPASU"
+                : "NAPLÁNOVÁNO";
+
+            const datum = z.match_time
+              ? new Date(z.match_time).toLocaleString("cs-CZ", {
+                  dateStyle: "short",
+                  timeStyle: "short"
+                })
+              : "Termín bude upřesněn";
+
+            return `
+              <div class="match">
+                <div class="match-meta">
+                  ${bezpecnyText(datum)} · ${stav}
+                </div>
+                <div class="match-teams">
+                  <strong>${bezpecnyText(domaci)}</strong>
+                  <span class="match-score">${skore}</span>
+                  <strong class="match-away">${bezpecnyText(hoste)}</strong>
+                </div>
+                ${z.overtime ? '<div class="match-meta" style="margin-top:9px">Rozhodnuto v prodloužení</div>' : ""}
+              </div>
+            `;
+          }).join("");
+        }
+
+        // Výpočet ligové tabulky
+        const statistiky = new Map();
+
+        for (const tym of seznamTymu) {
+          statistiky.set(tym.id, {
+            ...tym,
+            played: 0,
+            wins: 0,
+            losses: 0,
+            points: 0,
+            goalsFor: 0,
+            goalsAgainst: 0
+          });
+        }
+
+        for (const z of vsechnyZapasy) {
+          if (
+            z.status !== "finished" ||
+            z.home_score == null ||
+            z.away_score == null
+          ) continue;
+
+          const domaci = statistiky.get(z.home_team_id);
+          const hoste = statistiky.get(z.away_team_id);
+
+          if (!domaci || !hoste) continue;
+
+          domaci.played++;
+          hoste.played++;
+
+          domaci.goalsFor += z.home_score;
+          domaci.goalsAgainst += z.away_score;
+          hoste.goalsFor += z.away_score;
+          hoste.goalsAgainst += z.home_score;
+
+          if (z.home_score > z.away_score) {
+            domaci.wins++;
+            hoste.losses++;
+
+            if (z.overtime) {
+              domaci.points += 2;
+              hoste.points += 1;
+            } else {
+              domaci.points += 3;
+            }
+          } else if (z.away_score > z.home_score) {
+            hoste.wins++;
+            domaci.losses++;
+
+            if (z.overtime) {
+              hoste.points += 2;
+              domaci.points += 1;
+            } else {
+              hoste.points += 3;
+            }
+          }
+        }
+
+        const serazeneTymy = [...statistiky.values()].sort((a, b) =>
+          b.points - a.points ||
+          (b.goalsFor - b.goalsAgainst) -
+            (a.goalsFor - a.goalsAgainst) ||
+          b.goalsFor - a.goalsFor ||
+          a.name.localeCompare(b.name, "cs")
+        );
+
+        if (serazeneTymy.length === 0) {
+          tabulkaTelo.innerHTML = `
+            <tr><td colspan="7">V databázi zatím nejsou žádné týmy.</td></tr>
+          `;
+        } else {
+          tabulkaTelo.innerHTML = serazeneTymy.map((tym, index) => `
+            <tr>
+              <td class="rank">${index + 1}.</td>
+              <td class="team">${bezpecnyText(tym.name)}</td>
+              <td>${tym.played}</td>
+              <td>${tym.wins}</td>
+              <td>${tym.losses}</td>
+              <td>${tym.goalsFor}:${tym.goalsAgainst}</td>
+              <td class="points">${tym.points}</td>
+            </tr>
+          `).join("");
+        }
+      } catch (chyba) {
+        console.error("Chyba při načítání HPL:", chyba);
+        zobrazChybu();
+      }
+    }
+
+    nactiDataHPL();
+  </script>
 </body>
 </html>
