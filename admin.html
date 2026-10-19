@@ -302,10 +302,10 @@
     const match = matches.find(item => item.id === id);
     if (!match) return;
 
-    const homeScore = Number($(`[data-home-score="${id}"]`).value);
-    const awayScore = Number($(`[data-away-score="${id}"]`).value);
-    const status = finish ? "finished" : $(`[data-status="${id}"]`).value;
-    const overtime = $(`[data-overtime="${id}"]`).value === "true";
+    const homeScore = Number(document.querySelector(`[data-home-score="${id}"]`).value);
+const awayScore = Number(document.querySelector(`[data-away-score="${id}"]`).value);
+const status = finish ? "finished" : document.querySelector(`[data-status="${id}"]`).value;
+const overtime = document.querySelector(`[data-overtime="${id}"]`).value === "true";
 
     if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) ||
         homeScore < 0 || awayScore < 0) {
