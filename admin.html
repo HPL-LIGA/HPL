@@ -15,21 +15,15 @@
       font-family: Arial, sans-serif;
     }
     main {
-      width: 100%; max-width: 440px; padding: 30px;
+      width: 100%; max-width: 480px; padding: 30px;
       background: #101e31; border: 1px solid #263b56;
       border-radius: 18px;
     }
     .brand { color: #58a6ff; font-weight: 800; letter-spacing: 3px; }
     h1 { margin-bottom: 8px; }
     p { color: #aabbd0; line-height: 1.5; }
-    label { display: block; margin: 18px 0 7px; }
-    input {
-      width: 100%; padding: 13px; border-radius: 8px;
-      border: 1px solid #344c69; background: #091525;
-      color: white; font-size: 16px;
-    }
     button {
-      width: 100%; margin-top: 22px; padding: 13px;
+      width: 100%; margin-top: 18px; padding: 14px;
       border: 0; border-radius: 8px; cursor: pointer;
       background: #3287f6; color: white; font-size: 16px;
       font-weight: bold;
@@ -38,38 +32,30 @@
     #message { margin-top: 18px; overflow-wrap: anywhere; }
     .hidden { display: none; }
     .panel { margin-top: 24px; padding-top: 20px; border-top: 1px solid #344c69; }
+    .secondary { background: #263b56; }
   </style>
 </head>
 <body>
   <main>
     <div class="brand">HPL · ADMIN</div>
     <h1>Administrace ligy</h1>
-    <p>Přihlas se svým potvrzeným účtem. Přístup bude povolen pouze účtům evidovaným jako administrátoři HPL.</p>
+    <p>Přihlas se přes GitHub. Přístup do administrace získají pouze účty schválené jako administrátoři HPL.</p>
 
-    <form id="loginForm">
-      <label for="email">E-mail</label>
-      <input id="email" type="email" autocomplete="username" required>
-
-      <label for="password">Heslo</label>
-      <input id="password" type="password" autocomplete="current-password" required>
-
-      <button id="loginButton" type="submit">Přihlásit se</button>
-    </form>
-
-    <p id="message" role="status"></p>
+    <button id="loginButton" type="button">Přihlásit se přes GitHub</button>
+    <p id="message" role="status">Kontroluji přihlášení…</p>
 
     <section id="adminPanel" class="panel hidden">
       <h2>Přístup povolen</h2>
       <p id="accountInfo"></p>
       <p>Ověření administrátora funguje. V další fázi sem přidáme správu zápasů a výsledků.</p>
-      <button id="logoutButton" type="button">Odhlásit se</button>
+      <button id="logoutButton" class="secondary" type="button">Odhlásit se</button>
     </section>
   </main>
 
   <script>
     const SUPABASE_URL = "https://hmwbrebwjcgtxtbcebec.supabase.co";
 
-    // Vlož sem svůj veřejný sb_publishable_ klíč používaný na hlavní stránce.
+    // Vlož stejný veřejný sb_publishable_ klíč jako na hlavním webu.
     const SUPABASE_KEY = "sb_publishable_j3-UIjNpqdxWSoNaPsFdzw_O0pFpsYH";
 
     const client = window.supabase.createClient(
@@ -77,25 +63,20 @@
       SUPABASE_KEY
     );
 
-    const form = document.getElementById("loginForm");
+    const loginButton = document.getElementById("loginButton");
     const message = document.getElementById("message");
     const panel = document.getElementById("adminPanel");
-    const button = document.getElementById("loginButton");
-
-    function showMessage(text) {
-      message.textContent = text;
-    }
 
     async function checkAdmin(session) {
       panel.classList.add("hidden");
-      form.classList.remove("hidden");
+      loginButton.classList.remove("hidden");
 
       if (!session) {
-        showMessage("Přihlas se svým administrátorským účtem.");
+        message.textContent = "Pro pokračování se přihlas přes GitHub.";
         return;
       }
 
-      showMessage("Ověřuji oprávnění…");
+      message.textContent = "Ověřuji oprávnění administrátora…";
 
       const { data, error } = await client
         .from("hpl_admins")
@@ -104,54 +85,55 @@
         .maybeSingle();
 
       if (error) {
-        showMessage("Ověření se nezdařilo. Zkontroluj nastavení Supabase a oprávnění tabulky.");
+        message.textContent = "Ověření se nezdařilo. Zkontroluj nastavení Supabase.";
         return;
       }
 
       if (!data) {
         await client.auth.signOut();
-        showMessage("Tento účet nemá oprávnění administrátora HPL.");
+        message.textContent = "Tento GitHub účet nemá oprávnění administrátora HPL.";
         return;
       }
 
-      form.classList.add("hidden");
+      loginButton.classList.add("hidden");
       panel.classList.remove("hidden");
       document.getElementById("accountInfo").textContent =
-        "Přihlášený účet: " + session.user.email;
-      showMessage("Úspěšně ověřeno.");
+        "Přihlášený účet: " + (session.user.email || "GitHub účet");
+      message.textContent = "Úspěšně ověřeno.";
     }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      button.disabled = true;
-      showMessage("Přihlašuji…");
+    loginButton.addEventListener("click", async () => {
+      loginButton.disabled = true;
+      message.textContent = "Přesměrovávám na GitHub…";
 
-      const { data, error } = await client.auth.signInWithPassword({
-        email: document.getElementById("email").value.trim(),
-        password: document.getElementById("password").value
+      const { error } = await client.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: window.location.origin + window.location.pathname
+        }
       });
 
-      button.disabled = false;
-
       if (error) {
-        showMessage("Přihlášení se nezdařilo. Zkontroluj e-mail a heslo.");
-        return;
+        message.textContent = "Přihlášení se nepodařilo zahájit. Zkontroluj nastavení GitHub providera.";
+        loginButton.disabled = false;
       }
-
-      await checkAdmin(data.session);
     });
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       await client.auth.signOut();
       panel.classList.add("hidden");
-      form.classList.remove("hidden");
-      form.reset();
-      showMessage("Byl/a jsi odhlášen/a.");
+      loginButton.classList.remove("hidden");
+      loginButton.disabled = false;
+      message.textContent = "Byl/a jsi odhlášen/a.";
+    });
+
+    client.auth.onAuthStateChange((_event, session) => {
+      checkAdmin(session);
     });
 
     client.auth.getSession().then(({ data, error }) => {
       if (error) {
-        showMessage("Nepodařilo se načíst přihlášení.");
+        message.textContent = "Nepodařilo se načíst přihlášení.";
         return;
       }
       checkAdmin(data.session);
